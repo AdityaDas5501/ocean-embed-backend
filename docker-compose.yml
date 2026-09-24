@@ -1,0 +1,136 @@
+services:
+  # -------------------------------------------------------------
+  # PostgreSQL: User Auth Metadata & Date Catalog Index
+  # -------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ocean-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ocean_db
+      POSTGRES_USER: ocean_user
+      POSTGRES_PASSWORD: ocean_secret_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ocean_user -d ocean_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ocean-network
+
+  # -------------------------------------------------------------
+  # MinIO: S3-Compatible Multi-Year NetCDF/Zarr Data Lake
+  # -------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: ocean-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ocean-network
+
+  # -------------------------------------------------------------
+  # Redis: In-Memory Compressed Binary Cache (7d vs 1h TTL)
+  # -------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ocean-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 1gb --maxmemory-policy allkeys-lru --save ""
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ocean-network
+
+  # -------------------------------------------------------------
+  # Python ML Service: ModelSingleton PyTorch Inference Engine
+  # -------------------------------------------------------------
+  python_ml:
+    build:
+      context: ./python_ml
+      dockerfile: Dockerfile
+    container_name: ocean-python-ml
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ocean_db
+      POSTGRES_USER: ocean_user
+      POSTGRES_PASSWORD: ocean_secret_pass
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: ocean-data
+      MINIO_USE_SSL: "false"
+      MODEL_PATH: /app/models/oceanembed_v1.pt
+    volumes:
+      - ./models:/app/models
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - ocean-network
+
+  # -------------------------------------------------------------
+  # Node.js API Gateway: Auth, 5-Degree Grid Validator & Cache
+  # -------------------------------------------------------------
+  node_gateway:
+    build:
+      context: ./node_gateway
+      dockerfile: Dockerfile
+    container_name: ocean-node-gateway
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      PYTHON_SERVICE_URL: http://python_ml:8000
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: oceanembed-super-secret-jwt-key-2024
+      JWT_EXPIRES_IN: 24h
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      python_ml:
+        condition: service_started
+    networks:
+      - ocean-network
+
+volumes:
+  postgres_data:
+  minio_data:
+  redis_data:
+
+networks:
+  ocean-network:
+    driver: bridge
