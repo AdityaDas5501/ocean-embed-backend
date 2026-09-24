@@ -116,6 +116,11 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: oceanembed-super-secret-jwt-key-2024
       JWT_EXPIRES_IN: 24h
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ocean_db
+      POSTGRES_USER: ocean_user
+      POSTGRES_PASSWORD: ocean_secret_pass
     ports:
       - "3000:3000"
     depends_on:
@@ -123,6 +128,22 @@ services:
         condition: service_healthy
       python_ml:
         condition: service_started
+    networks:
+      - ocean-network
+
+  # -------------------------------------------------------------
+  # React Frontend (Vite)
+  # -------------------------------------------------------------
+  frontend:
+    build:
+      context: ../ocean-embed
+      dockerfile: Dockerfile
+    container_name: ocean-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - node_gateway
     networks:
       - ocean-network
 
