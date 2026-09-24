@@ -13,13 +13,13 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
--- Seed default administrator account
--- Password: "OceanEmbed2024!" (bcrypt hash with cost factor 10)
+-- Seed default test account
+-- Password: "root" (bcrypt hash with cost factor 10)
 INSERT INTO users (email, password_hash, full_name, role)
 VALUES (
-    'admin@oceanembed.ai',
-    '$2a$10$wE9hZ2RzV4vG1XjY7P4wce8Z8jQ7k4D2E5a5F6b7C8d9E0F1G2H3I',
-    'OceanEmbed Administrator',
+    'test@test.com',
+    '$2a$10$KL7QqtbFNdjneH0rG6DiherfyBSCzZogxdV9cpx4OAgyh4G4gIXxK',
+    'Test User',
     'admin'
 )
 ON CONFLICT (email) DO NOTHING;
