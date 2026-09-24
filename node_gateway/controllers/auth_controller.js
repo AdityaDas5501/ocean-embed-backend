@@ -25,6 +25,31 @@ export async function loginHandler(req, res) {
 
   const normalizedEmail = String(email).trim().toLowerCase();
 
+  // HARDCODED TESTING CREDENTIALS (Bypass DB entirely for local demonstration)
+  if (normalizedEmail === 'admin@oceanembed.com' && password === 'password123') {
+    const tokenPayload = {
+      userId: 1,
+      email: normalizedEmail,
+      role: 'admin',
+      name: 'Admin Tester',
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+    return res.status(200).json({
+      status: 'success',
+      access_token: token,
+      token_type: 'Bearer',
+      expires_in: 86400,
+      user: {
+        id: 1,
+        email: normalizedEmail,
+        name: 'Admin Tester',
+        role: 'admin',
+      },
+      trace_id: traceId,
+    });
+  }
+
   try {
     // Validate user against database
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [normalizedEmail]);
