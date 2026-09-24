@@ -19,12 +19,19 @@ const logger = pino({
 });
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const DISABLE_REDIS = process.env.DISABLE_REDIS === 'true';
 const PROFILE_KEY_PREFIX = 'ocean:profile:';
 const TTL_HISTORICAL = 7 * 86400; // 7 days (604,800s)
 const TTL_CURRENT_DAY = 3600;      // 1 hour (3,600s)
 
 export class OceanRedisClient {
   constructor() {
+    if (DISABLE_REDIS) {
+      logger.info('Redis caching is completely DISABLED via environment variables.');
+      this.redis = null;
+      return;
+    }
+
     this.redis = new Redis(REDIS_URL, {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
@@ -44,26 +51,18 @@ export class OceanRedisClient {
     });
   }
 
-  /**
-   * Helper to format profile cache key
-   */
   getProfileKey(lat, lon, date) {
     return `${PROFILE_KEY_PREFIX}lat:${lat}:lon:${lon}:date:${date}`;
   }
 
-  /**
-   * Calculates appropriate TTL based on date
-   * Today gets 1-hour TTL (3600s), past dates get 7-day TTL (604800s).
-   */
   calculateTtl(dateStr) {
     const today = new Date().toISOString().slice(0, 10);
     return dateStr === today ? TTL_CURRENT_DAY : TTL_HISTORICAL;
   }
 
-  /**
-   * Retrieves and decompresses cached profile payload
-   */
   async getProfile(lat, lon, date, traceId) {
+    if (DISABLE_REDIS || !this.redis) return null;
+
     const key = this.getProfileKey(lat, lon, date);
     try {
       const startMs = Date.now();
@@ -95,10 +94,9 @@ export class OceanRedisClient {
     }
   }
 
-  /**
-   * Compresses and saves profile payload to Redis with dynamic TTL
-   */
   async setProfile(lat, lon, date, data, traceId) {
+    if (DISABLE_REDIS || !this.redis) return;
+
     const key = this.getProfileKey(lat, lon, date);
     const ttl = this.calculateTtl(date);
     try {
@@ -124,17 +122,13 @@ export class OceanRedisClient {
     }
   }
 
-  /**
-   * Ping Redis
-   */
   async ping() {
+    if (DISABLE_REDIS || !this.redis) return 'PONG (Bypassed)';
     return this.redis.ping();
   }
 
-  /**
-   * Graceful quit
-   */
   async quit() {
+    if (DISABLE_REDIS || !this.redis) return;
     return this.redis.quit();
   }
 }
