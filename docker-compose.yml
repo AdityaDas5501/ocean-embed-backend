@@ -24,30 +24,30 @@ services:
       - ocean-network
 
   # -------------------------------------------------------------
-  # MinIO: S3-Compatible Multi-Year NetCDF/Zarr Data Lake
+  # MinIO: Temporarily disabled due to registry issues
   # -------------------------------------------------------------
-  minio:
-    image: bitnami/minio:latest
-    container_name: ocean-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_DEFAULT_ACCESS_KEY: minioadmin
-      MINIO_DEFAULT_SECRET_KEY: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - ocean-network
+  # minio:
+  #   image: bitnami/minio:latest
+  #   container_name: ocean-minio
+  #   restart: unless-stopped
+  #   command: server /data --console-address ":9001"
+  #   environment:
+  #     MINIO_ROOT_USER: minioadmin
+  #     MINIO_ROOT_PASSWORD: minioadmin
+  #     MINIO_DEFAULT_ACCESS_KEY: minioadmin
+  #     MINIO_DEFAULT_SECRET_KEY: minioadmin
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - minio_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - ocean-network
 
   # -------------------------------------------------------------
   # Redis: In-Memory Compressed Binary Cache (7d vs 1h TTL)
@@ -97,8 +97,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      # minio:
+      #   condition: service_healthy
     networks:
       - ocean-network
 
@@ -151,7 +151,7 @@ services:
 
 volumes:
   postgres_data:
-  minio_data:
+  # minio_data:
   redis_data:
 
 networks:

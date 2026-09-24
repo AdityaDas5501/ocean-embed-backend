@@ -12,8 +12,6 @@ __pycache__/
 venv/
 
 # Machine Learning Models & Data
-*.pt
-*.pth
 python_ml/scratch/
 
 # Environment Variables
