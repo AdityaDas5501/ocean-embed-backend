@@ -35,8 +35,8 @@ class ModelSingleton:
         cls._device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"Initializing ModelSingleton on device: {cls._device}")
 
-        # Ensure model file exists; if not, bootstrap prototype
-        if not os.path.exists(model_path):
+        # Ensure model file exists; if not, or if skipping, bootstrap prototype
+        if not os.path.exists(model_path) or os.environ.get("SKIP_LARGE_MODEL") == "true":
             cls._bootstrap_prototype(model_path)
 
         try:
