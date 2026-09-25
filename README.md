@@ -170,26 +170,22 @@ Content-Type: application/json
 
 ## 🚀 Running Locally (Without Docker)
 
-You can spin up the entire architecture locally by opening three separate terminal windows in the repository root:
+You can spin up the entire architecture locally across three terminal windows:
 
-**1. Start the Python ML Engine (Terminal 1)**
-```powershell
+**1. Python ML Engine**
+```bash
 cd python_ml
-.\.venv\Scripts\activate   # (Or `source .venv/bin/activate` on Mac/Linux)
 uvicorn main:app --port 8000
 ```
 
-**2. Start the Node.js API Gateway (Terminal 2)**
-```powershell
+**2. Node.js API Gateway**
+```bash
 cd node_gateway
-cp .env.example .env       # (On Windows, copy .env.example .env)
-$env:DISABLE_REDIS="true"  # Bypass Redis cache for local testing
-node server.js
+npm run dev
 ```
 
-**3. Start the React Frontend (Terminal 3)**
-Navigate to your completely separate frontend repository folder:
-```powershell
+**3. React Frontend**
+```bash
 cd ../ocean-embed
 npm run dev
 ```
