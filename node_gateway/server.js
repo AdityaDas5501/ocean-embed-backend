@@ -147,7 +147,7 @@ app.get('/api/v1/ocean/profile', authenticateJWT, async (req, res) => {
     const pyResponse = await axios.get(pythonUrl, {
       params: { lat, lon, date, async: asyncMode },
       headers: { 'x-trace-id': traceId },
-      timeout: 15000,
+      timeout: 60000,
     });
 
     const profileData = pyResponse.data;
@@ -305,7 +305,7 @@ app.get('/api/v1/ocean/region-summary', authenticateJWT, async (req, res) => {
     const pyResponse = await axios.get(`${PYTHON_SERVICE_URL}/internal/v1/ocean/region-summary`, {
       params: { region: normalizedRegion, date },
       headers: { 'x-trace-id': traceId },
-      timeout: 10000,
+      timeout: 60000,
     });
 
     return res.status(200).json({
@@ -355,7 +355,7 @@ app.get('/api/v1/ocean/historical', authenticateJWT, async (req, res) => {
     const pyResponse = await axios.get(`${PYTHON_SERVICE_URL}/internal/v1/ocean/historical`, {
       params: { lat, lon, metric, end_date },
       headers: { 'x-trace-id': traceId },
-      timeout: 10000,
+      timeout: 60000,
     });
 
     return res.status(200).json({

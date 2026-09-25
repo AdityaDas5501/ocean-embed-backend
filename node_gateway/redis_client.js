@@ -9,6 +9,8 @@
 import Redis from 'ioredis';
 import zlib from 'node:zlib';
 import pino from 'pino';
+import dotenv from 'dotenv';
+dotenv.config({ path: '../.env' });
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
