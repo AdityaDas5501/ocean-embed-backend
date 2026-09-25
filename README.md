@@ -168,18 +168,34 @@ Content-Type: application/json
 
 ---
 
-## 🚀 Running with Docker Compose
+## 🚀 Running Locally (Without Docker)
 
-```bash
-docker compose up -d --build
+You can spin up the entire architecture locally by opening three separate terminal windows in the repository root:
+
+**1. Start the Python ML Engine (Terminal 1)**
+```powershell
+cd python_ml
+.\.venv\Scripts\activate   # (Or `source .venv/bin/activate` on Mac/Linux)
+uvicorn main:app --port 8000
 ```
 
-Services initialized:
-- `ocean-postgres` (PostgreSQL 16): Port 5432
-- `ocean-minio` (MinIO Object Storage): Ports 9000 & 9001
-- `ocean-redis` (Redis 7 In-Memory Cache): Port 6379
-- `ocean-python-ml` (FastAPI + ModelSingleton PyTorch Engine): Port 8000
-- `ocean-node-gateway` (Node.js Express Gateway): Port 3000
+**2. Start the Node.js API Gateway (Terminal 2)**
+```powershell
+cd node_gateway
+$env:DISABLE_REDIS="true"  # Bypass Redis cache for local testing
+node server.js
+```
+
+**3. Start the React Frontend (Terminal 3)**
+Navigate to your completely separate frontend repository folder:
+```powershell
+cd ../ocean-embed
+npm run dev
+```
+
+---
+
+## 🐳 Running with Docker Compose
 
 ---
 
