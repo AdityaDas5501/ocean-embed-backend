@@ -175,6 +175,7 @@ You can spin up the entire architecture locally across three terminal windows:
 **1. Python ML Engine**
 ```bash
 cd python_ml
+.\.venv\Scripts\activate   # (Or `source .venv/bin/activate` on Mac/Linux)
 uvicorn main:app --port 8000
 ```
 
