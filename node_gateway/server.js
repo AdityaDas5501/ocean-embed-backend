@@ -16,7 +16,7 @@ import { loginHandler } from './controllers/auth_controller.js';
 import { validateCoordinates } from './utils/coordinate_validator.js';
 import { redisCache } from './redis_client.js';
 
-dotenv.config();
+dotenv.config({ path: '../.env' });
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
