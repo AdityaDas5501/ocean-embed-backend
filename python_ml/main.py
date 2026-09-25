@@ -17,6 +17,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, Response, status, BackgroundTasks, Request
 import uuid
 import asyncio
+import torch
+
+# Prevent PyTorch OpenMP from spawning too many threads and silently crashing constrained laptops
+torch.set_num_threads(1)
 
 TASK_STORE = {}
 
