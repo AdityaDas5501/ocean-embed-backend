@@ -182,6 +182,7 @@ uvicorn main:app --port 8000
 **2. Start the Node.js API Gateway (Terminal 2)**
 ```powershell
 cd node_gateway
+cp .env.example .env       # (On Windows, copy .env.example .env)
 $env:DISABLE_REDIS="true"  # Bypass Redis cache for local testing
 node server.js
 ```
