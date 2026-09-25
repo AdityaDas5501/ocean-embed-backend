@@ -38,7 +38,8 @@ async def run_profile_task(task_id: str, lat: float, lon: float, date: str, trac
         model = ModelSingleton.get_model()
         device = ModelSingleton.get_device()
         
-        profile_data = generate_profile_payload(
+        profile_data = await asyncio.to_thread(
+            generate_profile_payload,
             lat=lat,
             lon=lon,
             date_str=date,

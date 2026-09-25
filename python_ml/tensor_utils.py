@@ -101,8 +101,15 @@ def generate_profile_payload(
     # The Swin Transformer model expects [1, 11, 128, 256], so we upscale the 20x20 grid dynamically
     model_input = F.interpolate(raw_tensor, size=(128, 256), mode="bilinear", align_corners=False)
 
-    with torch.no_grad():
+    import gc
+    del raw_tensor
+    gc.collect()
+
+    with torch.inference_mode():
         model_out = model(model_input)
+        
+    del model_input
+    gc.collect()
 
     if model_out.dim() == 4:
         model_out_20x20 = F.interpolate(model_out, size=(20, 20), mode="bilinear", align_corners=False)
