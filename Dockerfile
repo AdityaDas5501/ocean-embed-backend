@@ -1,5 +1,5 @@
 # Use a Python base image
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 # Install system dependencies, including curl for Node.js installation
 RUN apt-get update && \
