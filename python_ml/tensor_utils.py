@@ -144,9 +144,9 @@ def generate_profile_payload(
     for idx, depth_m in enumerate(FIXED_DEPTH_LEVELS):
         # Extract perturbation scalar for the center cell
         try:
-            perturbation = float(model_out_20x20[0, idx % 15, 10, 10].item()) * 0.05 if model_out_20x20 is not None else 0.0
+            perturbation = float(model_out_20x20[0, idx % 15, 10, 10].item()) if model_out_20x20 is not None else 0.0
         except (IndexError, TypeError):
-            perturbation = float(model_out[0, idx % 15].item()) * 0.05 if model_out.dim() == 2 else 0.0
+            perturbation = float(model_out[0, idx % 15].item()) if model_out.dim() == 2 else 0.0
             
         # Baseline math to convert the model's residual/normalized output into true Celsius
         decay = math.exp(-depth_m / 160.0)
@@ -165,7 +165,7 @@ def generate_profile_payload(
                 else:
                     if model_out_20x20 is not None:
                         try:
-                            pert = float(model_out_20x20[0, idx % 15, r, c].item()) * 0.05
+                            pert = float(model_out_20x20[0, idx % 15, r, c].item())
                         except IndexError:
                             pert = perturbation
                     else:
