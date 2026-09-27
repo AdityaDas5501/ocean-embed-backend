@@ -88,7 +88,7 @@ def process_grid(ds: xr.Dataset, var_name: str, lat: float, lon: float, date_str
     target_lat = np.linspace(lat, lat + 4.75, 20, dtype=np.float32)
     target_lon = np.linspace(lon, lon + 4.75, 20, dtype=np.float32)
     
-    da = da.interp({lat_dim: target_lat, lon_dim: target_lon}, method="linear", kwargs={"fill_value": "extrapolate"})
+    da = da.interp({lat_dim: target_lat, lon_dim: target_lon}, method="linear")
     
     arr = np.asarray(da.transpose(lat_dim, lon_dim).values, dtype=np.float32)
     if k2c:

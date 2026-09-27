@@ -52,6 +52,13 @@ def format_coordinate_range(lat: float, lon: float) -> Tuple[str, str]:
     lon_end = format_degree(lon + 5.0, is_lat=False)
     return f"{lat_start} - {lat_end}", f"{lon_start} - {lon_end}"
 
+def safe_mean(grid: List[List[float]]) -> float:
+    arr = np.array(grid)
+    mask = ~np.isclose(arr, 0.0, atol=1e-5)
+    if not np.any(mask):
+        return 0.0
+    return float(np.mean(arr[mask]))
+
 def generate_profile_payload(
     lat: float,
     lon: float,
@@ -60,8 +67,7 @@ def generate_profile_payload(
     model: torch.jit.ScriptModule,
     device: str,
 ) -> Dict[str, Any]:
-    if is_cell_landmass(lat, lon):
-        raise LandmassException(f"Coordinate cell ({lat}, {lon}) is situated over a continental landmass.")
+
 
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d")
@@ -117,18 +123,18 @@ def generate_profile_payload(
         model_out_20x20 = None
 
     # Compute scalar means for JSON payload
-    sst_val = round(float(np.mean(sst_grid)), 2)
-    sss_val = round(float(np.mean(sss_grid)), 2)
-    ssh_val = round(float(np.mean(ssh_grid)), 2)
-    u_curr_mean = round(float(np.mean(u_curr_grid)), 2)
-    v_curr_mean = round(float(np.mean(v_curr_grid)), 2)
-    u_wind_mean = round(float(np.mean(u_wind_grid)), 2)
-    v_wind_mean = round(float(np.mean(v_wind_grid)), 2)
+    sst_val = round(safe_mean(sst_grid), 2)
+    sss_val = round(safe_mean(sss_grid), 2)
+    ssh_val = round(safe_mean(ssh_grid), 2)
+    u_curr_mean = round(safe_mean(u_curr_grid), 2)
+    v_curr_mean = round(safe_mean(v_curr_grid), 2)
+    u_wind_mean = round(safe_mean(u_wind_grid), 2)
+    v_wind_mean = round(safe_mean(v_wind_grid), 2)
     
     # Construct dict grids for frontend
     currents_vector_grid = []
     winds_vector_grid = []
-    for i in range(20):
+    for i in range(19, -1, -1):
         c_row = []
         w_row = []
         for j in range(20):
@@ -157,7 +163,7 @@ def generate_profile_payload(
         temps_list.append(temp_val)
 
         temps_grid = []
-        for r in range(20):
+        for r in range(19, -1, -1):
             row_arr = []
             for c in range(20):
                 if math.isclose(sst_grid[r][c], 0.0, abs_tol=1e-5):
