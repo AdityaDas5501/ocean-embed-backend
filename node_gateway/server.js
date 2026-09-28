@@ -12,7 +12,7 @@ import pino from 'pino';
 import dotenv from 'dotenv';
 
 import { authenticateJWT } from './middleware/auth.js';
-import { loginHandler } from './controllers/auth_controller.js';
+import { loginHandler, signupHandler } from './controllers/auth_controller.js';
 import { validateCoordinates } from './utils/coordinate_validator.js';
 import { redisCache } from './redis_client.js';
 
@@ -59,6 +59,7 @@ app.use((req, res, next) => {
 // Routes: Authentication
 // =========================================================================
 app.post('/api/v1/auth/login', loginHandler);
+app.post('/api/v1/auth/signup', signupHandler);
 
 // =========================================================================
 // Routes: System Health
