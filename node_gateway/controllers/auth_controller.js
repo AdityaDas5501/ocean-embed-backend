@@ -10,6 +10,10 @@ import pool from '../utils/db.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'oceanembed-super-secret-jwt-key-2024';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
+// Firebase Web App ID — used to validate the `aud` claim on Firebase ID tokens.
+// Must match the appId in your Firebase config (src/services/firebase.ts).
+const FIREBASE_APP_ID = process.env.FIREBASE_APP_ID || '1:7036925970:web:de51992ec129aabba340cb';
+
 export async function loginHandler(req, res) {
   const { email, password } = req.body || {};
   const traceId = req.traceId;
@@ -197,6 +201,129 @@ export async function signupHandler(req, res) {
     return res.status(500).json({
       error_code: 'INTERNAL_SERVER_ERROR',
       message: 'An error occurred during registration.',
+      trace_id: traceId,
+    });
+  }
+}
+
+/**
+ * POST /api/v1/auth/sync-password
+ *
+ * Syncs a Firebase password-reset back into Postgres.
+ * Called by the frontend after a user resets their password via Firebase
+ * but before the backend login — the backend's password_hash is stale.
+ *
+ * Security model:
+ *   - The caller provides a Firebase ID Token (short-lived JWT signed by Google).
+ *   - We verify it against Google's public tokeninfo endpoint — no Admin SDK needed.
+ *   - The email used for the UPDATE is taken from the verified token, NOT the
+ *     request body, preventing a caller from targeting another user's account.
+ *
+ * Body: { firebase_token: string, new_password: string }
+ * Returns 200 on success, 401 if token invalid, 404 if user not in DB.
+ */
+export async function syncPasswordHandler(req, res) {
+  const { firebase_token, new_password } = req.body || {};
+  const traceId = req.traceId;
+
+  if (!firebase_token || !new_password) {
+    return res.status(400).json({
+      error_code: 'INVALID_SYNC_PAYLOAD',
+      message: 'firebase_token and new_password are required.',
+      trace_id: traceId,
+    });
+  }
+
+  // --- Same password strength check as signup ---
+  const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
+  if (!passwordRegex.test(new_password)) {
+    return res.status(400).json({
+      error_code: 'WEAK_PASSWORD',
+      message: 'Password must be at least 8 characters and include uppercase, lowercase, and a number.',
+      trace_id: traceId,
+    });
+  }
+
+  // --- Verify the Firebase ID Token via Google's public tokeninfo endpoint ---
+  let tokenEmail;
+  try {
+    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${firebase_token}`;
+    const verifyRes = await fetch(verifyUrl);
+    const tokenData = await verifyRes.json();
+
+    if (!verifyRes.ok || tokenData.error) {
+      return res.status(401).json({
+        error_code: 'INVALID_FIREBASE_TOKEN',
+        message: 'Firebase token is invalid or has expired.',
+        trace_id: traceId,
+      });
+    }
+
+    // Validate the token belongs to this Firebase app (prevents token reuse from other apps)
+    if (tokenData.aud !== FIREBASE_APP_ID) {
+      return res.status(401).json({
+        error_code: 'FIREBASE_TOKEN_AUDIENCE_MISMATCH',
+        message: 'Firebase token was not issued for this application.',
+        trace_id: traceId,
+      });
+    }
+
+    // Check the token is not expired (tokeninfo does this too, but be explicit)
+    if (Number(tokenData.exp) < Math.floor(Date.now() / 1000)) {
+      return res.status(401).json({
+        error_code: 'FIREBASE_TOKEN_EXPIRED',
+        message: 'Firebase token has expired. Please log in again.',
+        trace_id: traceId,
+      });
+    }
+
+    tokenEmail = String(tokenData.email).trim().toLowerCase();
+
+    if (!tokenEmail) {
+      return res.status(401).json({
+        error_code: 'FIREBASE_TOKEN_NO_EMAIL',
+        message: 'Firebase token does not contain an email address.',
+        trace_id: traceId,
+      });
+    }
+  } catch (err) {
+    console.error('Firebase token verification error:', err);
+    return res.status(500).json({
+      error_code: 'TOKEN_VERIFICATION_FAILED',
+      message: 'Could not reach Firebase token verification service.',
+      trace_id: traceId,
+    });
+  }
+
+  // --- Update the password hash in Postgres ---
+  try {
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [tokenEmail]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        error_code: 'USER_NOT_FOUND',
+        message: 'No account found for this email address.',
+        trace_id: traceId,
+      });
+    }
+
+    const SALT_ROUNDS = 10;
+    const newHash = await bcrypt.hash(new_password, SALT_ROUNDS);
+
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE email = $2',
+      [newHash, tokenEmail]
+    );
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Password updated successfully.',
+      trace_id: traceId,
+    });
+  } catch (error) {
+    console.error('Sync password DB error:', error);
+    return res.status(500).json({
+      error_code: 'INTERNAL_SERVER_ERROR',
+      message: 'An error occurred while updating the password.',
       trace_id: traceId,
     });
   }

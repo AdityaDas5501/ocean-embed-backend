@@ -12,7 +12,7 @@ import pino from 'pino';
 import dotenv from 'dotenv';
 
 import { authenticateJWT } from './middleware/auth.js';
-import { loginHandler, signupHandler } from './controllers/auth_controller.js';
+import { loginHandler, signupHandler, syncPasswordHandler } from './controllers/auth_controller.js';
 import { validateCoordinates } from './utils/coordinate_validator.js';
 import { redisCache } from './redis_client.js';
 
@@ -60,6 +60,9 @@ app.use((req, res, next) => {
 // =========================================================================
 app.post('/api/v1/auth/login', loginHandler);
 app.post('/api/v1/auth/signup', signupHandler);
+// Syncs a Firebase-reset password back into Postgres.
+// Secured by Firebase ID token verification (no Admin SDK required).
+app.post('/api/v1/auth/sync-password', syncPasswordHandler);
 
 // =========================================================================
 // Routes: System Health
