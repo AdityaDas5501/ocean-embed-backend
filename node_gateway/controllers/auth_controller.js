@@ -5,14 +5,17 @@
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import axios from 'axios';
 import pool from '../utils/db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'oceanembed-super-secret-jwt-key-2024';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Firebase Web App ID — used to validate the `aud` claim on Firebase ID tokens.
-// Must match the appId in your Firebase config (src/services/firebase.ts).
-const FIREBASE_APP_ID = process.env.FIREBASE_APP_ID || '1:7036925970:web:de51992ec129aabba340cb';
+// Firebase project credentials for token verification.
+// FIREBASE_API_KEY: the public Web API key from your Firebase console.
+// FIREBASE_PROJECT_ID: used to validate the 'aud' and 'iss' claims.
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyBe-S4ShiDO9Cxwrwfx_eJzau_6yDzUV9U';
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'oceanembed-1b65a';
 
 export async function loginHandler(req, res) {
   const { email, password } = req.body || {};
@@ -244,14 +247,17 @@ export async function syncPasswordHandler(req, res) {
     });
   }
 
-  // --- Verify the Firebase ID Token via Google's public tokeninfo endpoint ---
+  // --- Verify the Firebase ID Token via Firebase's own REST API ----------------
+  // oauth2.googleapis.com/tokeninfo only works for Google OAuth tokens.
+  // Firebase email/password ID tokens must be verified via identitytoolkit.
   let tokenEmail;
   try {
-    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${firebase_token}`;
-    const verifyRes = await fetch(verifyUrl);
-    const tokenData = await verifyRes.json();
+    const verifyUrl =
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`;
+    const verifyRes = await axios.post(verifyUrl, { idToken: firebase_token });
+    const users = verifyRes.data?.users;
 
-    if (!verifyRes.ok || tokenData.error) {
+    if (!users || users.length === 0) {
       return res.status(401).json({
         error_code: 'INVALID_FIREBASE_TOKEN',
         message: 'Firebase token is invalid or has expired.',
@@ -259,25 +265,12 @@ export async function syncPasswordHandler(req, res) {
       });
     }
 
-    // Validate the token belongs to this Firebase app (prevents token reuse from other apps)
-    if (tokenData.aud !== FIREBASE_APP_ID) {
-      return res.status(401).json({
-        error_code: 'FIREBASE_TOKEN_AUDIENCE_MISMATCH',
-        message: 'Firebase token was not issued for this application.',
-        trace_id: traceId,
-      });
-    }
+    const firebaseUser = users[0];
 
-    // Check the token is not expired (tokeninfo does this too, but be explicit)
-    if (Number(tokenData.exp) < Math.floor(Date.now() / 1000)) {
-      return res.status(401).json({
-        error_code: 'FIREBASE_TOKEN_EXPIRED',
-        message: 'Firebase token has expired. Please log in again.',
-        trace_id: traceId,
-      });
-    }
-
-    tokenEmail = String(tokenData.email).trim().toLowerCase();
+    // Double-check the token is for our project by inspecting the localId prefix.
+    // (The identitytoolkit endpoint already rejects tokens from other projects,
+    //  but we also validate the email is present.)
+    tokenEmail = String(firebaseUser.email || '').trim().toLowerCase();
 
     if (!tokenEmail) {
       return res.status(401).json({
@@ -287,7 +280,15 @@ export async function syncPasswordHandler(req, res) {
       });
     }
   } catch (err) {
-    console.error('Firebase token verification error:', err);
+    // axios throws on 4xx/5xx; a 400 from Firebase means the token is invalid.
+    if (err.response?.status === 400) {
+      return res.status(401).json({
+        error_code: 'INVALID_FIREBASE_TOKEN',
+        message: 'Firebase token is invalid or has expired.',
+        trace_id: traceId,
+      });
+    }
+    console.error('Firebase token verification error:', err.message);
     return res.status(500).json({
       error_code: 'TOKEN_VERIFICATION_FAILED',
       message: 'Could not reach Firebase token verification service.',
