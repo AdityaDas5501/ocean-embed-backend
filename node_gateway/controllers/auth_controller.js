@@ -14,8 +14,8 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 // Firebase project credentials for token verification.
 // FIREBASE_API_KEY: the public Web API key from your Firebase console.
 // FIREBASE_PROJECT_ID: used to validate the 'aud' and 'iss' claims.
-const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyBe-S4ShiDO9Cxwrwfx_eJzau_6yDzUV9U';
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'oceanembed-1b65a';
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 
 export async function loginHandler(req, res) {
   const { email, password } = req.body || {};
